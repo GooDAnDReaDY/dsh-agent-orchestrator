@@ -14,6 +14,9 @@ test('renderOrchestratorRoster: renders all roles and instructions', () => {
   assert.match(prose, /qa_tests/)
   assert.match(prose, /Strict Separation of Duties/)
   assert.match(prose, /Design\/Frontend specialists must NEVER implement database schemas/)
+  assert.match(prose, /Visual Deliverable Status Callout/)
+  assert.match(prose, /Получен результат работы от субагента/)
+  assert.match(prose, /Результат получен от субагента/)
 })
 
 test('renderOrchestratorRoster: empty when no roles', () => {

@@ -1,0 +1,6 @@
+id: dsh-agent-orchestrator
+name: '@goodandready/dsh-agent-orchestrator'
+plugins:
+  - id: dsh-agent-orchestrator
+    name: '@goodandready/dsh-agent-orchestrator'
+

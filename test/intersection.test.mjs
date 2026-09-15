@@ -19,6 +19,32 @@ test('resolveToolIntersection: correctly computes parent ∩ role intersection',
   assert.deepEqual(result.diff.strippedSecurity, [])
 })
 
+test('resolveToolIntersection: bridges DSH native tool names (read, edit, write, glob, grep, bash)', () => {
+  // Parent has DSH native tools
+  const parentTools = ['read', 'edit', 'write', 'glob', 'grep', 'bash']
+  // Role requested Antigravity canonical tool names
+  const roleTools = [
+    'view_file',
+    'replace_file_content',
+    'write_to_file',
+    'find_by_name',
+    'grep_search',
+    'run_command',
+  ]
+
+  const result = resolveToolIntersection({ parentTools, roleTools })
+
+  // Subagent receives the parent's actual tool names!
+  assert.ok(result.tools.includes('read'))
+  assert.ok(result.tools.includes('edit'))
+  assert.ok(result.tools.includes('write'))
+  assert.ok(result.tools.includes('glob'))
+  assert.ok(result.tools.includes('grep'))
+  assert.ok(result.tools.includes('bash'))
+  assert.equal(result.tools.length, 6)
+  assert.equal(result.diff.denied.length, 0)
+})
+
 test('resolveToolIntersection: strictly strips run_code and security forbidden tools', () => {
   const parentTools = ['read_file', 'run_code', 'code_exec', 'grep_search']
   const roleTools = ['read_file', 'run_code', 'grep_search']

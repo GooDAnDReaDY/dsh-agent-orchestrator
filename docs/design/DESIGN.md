@@ -100,3 +100,40 @@
 - Движок DAG, нормализатор префиксов кэша, парсер декомпозиции и валидатор сценариев реализованы как чистые модули без зависимостей от сети и харнесса.
 - Тестирование: `node --test test/*.test.mjs`.
 
+
+
+### 5. Security & Guardrails Architecture (Batch 1: Issues #113, #103, #102, #19, #111)
+
+#### 1. Защита HTTP-маршрутов (`lib/http-guard.js`, Issue #113)
+- **Fail-closed origin/host check**:
+  - Для всех изменяющих состояние маршрутов (`/dispatch`, `/delegate`, `/cancel`, `/config`) обязательна валидация `Origin`, `Host`, `Referer`, `Sec-Fetch-Site`.
+  - При отсутствии `Origin` и `Sec-Fetch-Site` доступ разрешается исключительно локальным вызовам loopback (`127.0.0.1`, `::1`, `::ffff:127.0.0.1`).
+  - Все неавторизованные или cross-origin запросы немедленно отклоняются со статусом `403 Forbidden` (`no-store`).
+- **Строгий лимит размера тела (Payload Bounding)**:
+  - Метод `parseBoundedJsonBody` с аппаратным лимитом 1MB (`DEFAULT_MAX_BODY_BYTES = 1048576`).
+  - Превышение размера немедленно приостанавливает поток и возвращает `413 Payload Too Large`.
+- **Публичный маршрут `/status`**:
+  - Осознанно публичный `read-only` эндпоинт. Не принимает тело запроса, не производит мутаций, возвращает только агрегированные обезличенные метрики пайплайнов.
+
+#### 2. Защитный комплекс субагентов (Issues #103, #102, #19)
+- **Anti-Redelegation Shield (Issue #103)**:
+  - Принудительное вырезание всех инструментов делегирования (`agent_run`, `orchestrator_*`, `delegate`, `list_subagents`) из `toolFilter` любого дочернего воркера.
+- **Leaf Experts Bound (Issue #102)**:
+  - Специализированные эксперты (воркеры ролей) запускаются со строгим ограничением `maxDepth: 1`. Воркер обязан выполнить изолированную задачу и вернуть отчёт ведущему агенту, исключая каскадное ветвление.
+- **Anti-Matryoshka Guard (Issue #19)**:
+  - Аппаратный потолок глубины вложенности `HARD_MAX_DEPTH = 3`. При попытке делегирования на 4-м уровне бросается безопасное исключение `DELEGATION_DEPTH_LIMIT_MESSAGE`.
+  - Настройка `disableNestedDelegation` (булевый тумблер в конфиге): при включении запрещает любое порождение субагентов дочерними сессиями с сообщением `NESTED_DELEGATION_GUARD_MESSAGE`.
+
+#### 3. Адаптивная санитария инструментов и droppedTools (Issue #111)
+- Автоматическая сверка запрашиваемых ролью инструментов со средой родителя/хоста.
+- Формирование структурированного массива `droppedTools`:
+  - `security`: опасные системные примитивы (`run_code` и др.);
+  - `anti-redelegation`: инструменты рекурсивного делегирования;
+  - `denied`: явно запрещённые конфигурацией плагина;
+  - `unknown-or-unsupported`: отсутствующие в текущей среде инструменты.
+- Результат `droppedTools` возвращается в ответе деливерабла и доступен для отображения в интерфейсе без падения задачи.
+
+## Locked Design Decisions
+- **2026-09-14** — Каноническая 4-слойная структура контекста (Static Base -> Shared Task -> Cumulative Context -> Role Directive) для KV-кэша DeepSeek API.
+- **2026-09-15** — Единый синонимичный мост DSH инструментов (read/edit/write/glob/grep/bash ⟷ view_file/replace_file_content/write_to_file/find_by_name/grep_search/run_command) и pure-reasoning fallback при наличии контекста задачи.
+- **2026-09-18** — Введение Fail-closed HTTP Guard (loopback/origin verification + 1MB payload limit), Anti-Matryoshka Guard (`HARD_MAX_DEPTH = 3`, `disableNestedDelegation`), Leaf Expert Bound (`maxDepth: 1`) и разметки `droppedTools` (Issues #113, #103, #102, #19, #111).

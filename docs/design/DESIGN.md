@@ -7,8 +7,11 @@
 - **Статус**: Development, версия 0.1.0.
 
 ## User Surfaces
-- **Web UI / Settings Card**:
-  - Слот `settings.plugin.item` (пространство `dsh-agent-orchestrator`):
+- **Web UI / Settings Card (Карта слотов ядра DSH 0.1.6-alpha.2+, Issue #139)**:
+  - **`settings.plugins.tab`** (id `dsh-agent-orchestrator`, order 25): официальная вкладка внутри раздела `Settings → Плагины` (эталон DSH core `PluginsSettingsSection`).
+  - **`plugins.item`** (id `@goodandready/dsh-agent-orchestrator`, order 25): страница/карточка в менеджере плагинов (Plugin Manager, группа Official).
+  - **`settings.section`** (id `dsh-agent-orchestrator`, order 95): резервный корневой раздел в боковом меню настроек для гарантированной достижимости.
+  - *Примечание*: слот `settings.plugin.item` признан мёртвым слотом ядра (в DSH 0.1.6-alpha.2 отсутствует рендерер, Issue #139) и исключён из регистрации.
     - Секция 1: Пул агентов (6 ролей: architecture, spec, ui_design, code, qa_tests, docs) с настройкой модели, скиллов и системного промпта.
     - Секция 2: Редактор 3 сценариев (Simple 1-2 этапа, Medium 3-4 этапа, Complex 5-6 этапов) с настройкой блокеров и параллельности.
     - Секция 3: Мониторинг Prompt Caching (процент Cache Hit, сэкономленные токены, выравнивание префиксов).
@@ -323,10 +326,14 @@ ormRole.length > 0), но пересечение с родительскими �
   - В lib/pipeline/guidance.js промпт-инструкция включает только роли с nabled !== false.
   - В карточке настроек AgentProfilesTab добавлены переключатели Active / Disabled для каждого агента и фильтр отображения All (N) / Active Only (M).
 
-#### 6. Устранение дублирующей регистрации settings.section (Issue #128)
-- **Очистка корня Settings**:
-  - Из lib/client.js удалена безусловная регистрация слота settings.section, засорявшая левую панель настроек DSH.
-  - Настройки плагина единообразно и изолированно регистрируются только через карточку settings.plugin.item.
+#### 6. Пересмотр слотов и устранение dead-слота settings.plugin.item (Issues #128, #139)
+- **Анализ контрактов ядра DSH 0.1.6-alpha.2**:
+  - В ядре DSH 0.1.6-alpha.2 слот `settings.plugin.item` не рендерится ни одним компонентом ядра (рендерер отсутствует).
+  - По требованию Issue #139 регистрация в `settings.plugin.item` полностью устранена и заблокирована тест-стражем.
+  - Настройки зарегистрированы в действующие слоты ядра:
+    1. `settings.plugins.tab` — штатная вкладка раздела `Settings → Плагины`.
+    2. `plugins.item` — элемент страницы менеджера плагинов.
+    3. `settings.section` — резервный раздел в боковом меню настроек.
 
 
 #### 7. Очистка устаревших релизных архивов и политика сборки tarball (Issue #126)

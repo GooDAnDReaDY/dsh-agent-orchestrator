@@ -156,7 +156,7 @@ Short alias:
 
 ## 🧪 Verification & Automated Testing
 
-Execute the native test suite (14 passing tests, zero network dependencies):
+Execute the native test suite (121 passing tests across 53 suites, zero network dependencies):
 
 ```bash
 node --test test/*.test.mjs
@@ -167,6 +167,14 @@ Verify npm package bundle size compliance (<256 KiB threshold):
 ```bash
 npm pack --dry-run --json
 ```
+
+---
+
+## Visual verification
+
+Production acceptance of v0.1.6 — Settings card, Dark and Light themes side by side:
+
+![dsh-agent-orchestrator v0.1.6 visual verification](media/visual-verification.png)
 
 ---
 

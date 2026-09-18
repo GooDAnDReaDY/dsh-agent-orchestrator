@@ -206,13 +206,16 @@ test('Batch 6: Issue #105 - Slash command /subagents and /roster registration', 
   assert.ok(followupCalled)
 })
 
-test('Batch 6: Issue #128 - settings.section redundant registration removed from lib/client.js', () => {
+test('Batch 6/7: Issue #139 - settings reachability, settings.plugins.tab and guard against dead settings.plugin.item', () => {
   const clientPath = path.resolve('lib/client.js')
   const clientContent = fs.readFileSync(clientPath, 'utf8')
 
-  // Must not register settings.section in slot registrations
-  assert.equal(clientContent.includes("'settings.section'"), false, "lib/client.js must not register 'settings.section'")
-  assert.equal(clientContent.includes('"settings.section"'), false, 'lib/client.js must not register "settings.section"')
-  // Primary settings.plugin.item must be present
-  assert.ok(clientContent.includes('settings.plugin.item'), 'Primary settings.plugin.item must be registered')
+  // Guard test: lib/client.js must not register into dead settings.plugin.item (Issue #139)
+  assert.equal(clientContent.includes("'settings.plugin.item'"), false, "lib/client.js must not register 'settings.plugin.item'")
+  assert.equal(clientContent.includes('"settings.plugin.item"'), false, 'lib/client.js must not register "settings.plugin.item"')
+
+  // Must register into active DSH core slots (Issue #139)
+  assert.ok(clientContent.includes("'settings.plugins.tab'"), 'Must register settings.plugins.tab')
+  assert.ok(clientContent.includes("'plugins.item'"), 'Must register plugins.item')
+  assert.ok(clientContent.includes("'settings.section'"), 'Must register settings.section as fallback')
 })

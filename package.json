@@ -90,5 +90,6 @@
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
     "access": "public"
-  }
+  },
+  "author": "GooDAnDReaDY <support@goodandready.app>"
 }

@@ -255,6 +255,40 @@
 - В репозитории плагина отсутствуют отслеживаемые Git-файлы `.tgz` (включены в `.gitignore`).
 - Подготовлен переход профиля `web` с локального tarball на опубликованную неизменяемую registry-версию без флагов `--force`.
 
+### 9. Dynamic Model Catalog, Capability Routing, maxTokens, Reasoning Effort & Model Identity Chips (Batch 5: Issues #76, #74, #79, #86, #73)
+
+#### 1. Динамический опрос каталога моделей (`model_subagent_catalog`) (`lib/pipeline/model-selection.js`, `lib/routes.js`, Issue #76)
+- **Живой опрос провайдеров и моделей**:
+  - `fetchModelCatalog(ctx)` динамически опрашивает зарегистрированные в Cordis адаптеры (`ctx.llm.listProviders()`) и их модели (`ctx.llm.listModels(providerId)`).
+  - Модели нормализуются в структурированный каталог с семантическими возможностями, контекстными лимитами, флагами поддержки `reasoningEffort` и статусом авторизации согласно политике `subagent-model-selection`.
+- **Инструмент и REST-маршруты**:
+  - Зарегистрирован инструмент Cordis `model_subagent_catalog` с фильтрами по провайдеру (`provider`) и компетенциям (`capability`).
+  - Добавлен REST-эндпоинт `GET /dsh-agent-orchestrator/catalog/models` и обогащен существующий `/dsh-agent-orchestrator/models`.
+
+#### 2. Семантические теги возможностей моделей (`lib/pipeline/model-selection.js`, Issue #74)
+- **Абстрагирование от названий моделей**:
+  - Введены стандартизованные компетенции `MODEL_CAPABILITIES` (`coding`, `reasoning`, `fast`, `general`).
+  - Функция `inferModelCapabilities(modelId, providerId)` классифицирует модели по ключевым сигнатурам (`reasoner/r1/o1/o3` -> `reasoning`, `coder/sonnet/gpt-4o` -> `coding`, `fast/mini/haiku/turbo` -> `fast`).
+  - Функция `resolveModelByCapability(...)` выбирает подходящую модель из каталога с учетом политики `allowedRoutes`.
+
+#### 3. Индивидуальный потолок выходных токенов на маршрут (`maxTokens per model route`) (`lib/pipeline/model-selection.js`, `lib/pipeline/delegation.js`, `lib/pipeline/worker-pool.js`, Issue #79)
+- **Потолок токенов на алиас**:
+  - Цепочка разрешения `resolveMaxTokens`: явный оверрайд запроса -> `role.maxTokens` -> лимит маршрута `route.maxTokens` -> дефолт по классу компетенции (2048 для `fast`, 8192 для `reasoning`, 4096 по умолчанию).
+  - Сквозная передача `maxTokens` в `callLlm`, `subagents.start` и фиксация в `presentationMeta` и метриках.
+
+#### 4. Управление глубиной рассуждений с безопасной валидацией (`lib/pipeline/model-selection.js`, Issue #86)
+- **Уровни рассуждений (`ReasoningEffortId`)**:
+  - Поддержка уровней `off`, `low`, `medium`, `high`, `max`.
+  - Функция `isReasoningEffortSupported(...)` выполняет валидацию поддержки рассуждений.
+  - На неподдерживающих моделях (например, `deepseek-chat`) выполняется мягкое отключение рассуждений с предупреждением без падения исполнения.
+
+#### 5. Model Identity Chips в UI (`lib/client.js`, Issue #73)
+- **Цветные бейджи и понятные алиасы**:
+  - Компонент бейджей `.dso-model-chip` с дружественными названиями (`[Reasoner · R1]`, `[Fast Coder · V3]`, `[Coder · Sonnet 3.5]`, `[Fast · Mini]`, `[Local · Qwen]`).
+  - Интеграция в карточки настроек агентов (`AgentProfilesTab`), карточку выполнения инструментов (`SpecialistToolview`) и шапку сессий субагентов (`HeaderOrchestratorWidget`).
+  - Hover-тултип с подробной информацией (провайдер, модель, контекст, лимит токенов, поддержка рассуждений).
+  - 100% следование дизайн-системе DSW: исключительно CSS-переменные `--dsw-alias-*`, нулевое использование `#hex` и `rgba()`.
+
 ## Locked Design Decisions
 - **2026-09-14** — Каноническая 4-слойная структура контекста (Static Base -> Shared Task -> Cumulative Context -> Role Directive) для KV-кэша DeepSeek API.
 - **2026-09-15** — Единый синонимичный мост DSH инструментов (read/edit/write/glob/grep/bash ⟷ view_file/replace_file_content/write_to_file/find_by_name/grep_search/run_command) и pure-reasoning fallback при наличии контекста задачи.
@@ -262,3 +296,4 @@
 - **2026-09-18** — Введение Per-Parent Serialization Gate & Concurrency Cap (#93), Per-Call CWD Scoping (#87), Session Lifecycle Manager с очисткой projcache (#56) и Decision Trace Ledger с лимитом payload ≤4KB в presentationMeta (#108).
 - **2026-09-18** — Введение Fail-Fast Model Validation с Candidate Shortlist (#82), Smart Model Routing (#48), Deterministic max-tokens Watchdog с Continue-Once Guarantee (#75), Capacity Recycling по лимиту емкости (#67) и Two-Phase Reversible Archive в sessions-archive/ (#57).
 - **2026-09-18** — Внедрение переменных CSS-темы DSW вместо 78 хардкод-цветов (#114), обертывание словарей в ctx.effect с сохранением disposer (#115), очистка кода от кириллицы с унификацией ключей (#116), валидация MIN_CACHE_ANCHOR_TOKENS = 1024 (#117) и аудит изоляции упаковки профилей (#120).
+- **2026-09-18** — Внедрение динамического каталога моделей (model_subagent_catalog, #76), семантических тегов возможностей (#74), потолка maxTokens на маршрут (#79), управления глубиной рассуждений (reasoningEffort: off/low/medium/high/max, #86) и бейджей Model Identity Chips в UI (#73).

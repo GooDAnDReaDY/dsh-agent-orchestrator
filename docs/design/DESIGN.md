@@ -174,8 +174,57 @@
     4. Сокращение текстового обоснования `rationale`.
     5. Fallback до минимального дескриптора сущности `{ executionId, roleId, model, decision, truncated: true }`.
 
+### 7. Resilient Routing, Deterministic Watchdog & Capacity Lifecycle (Batch 3: Issues #82, #48, #75, #67, #57)
+
+#### 1. Fail-Fast Model Validation с Candidate Shortlist (`lib/pipeline/model-selection.js`, Issue #82)
+- **Предварительная валидация модели (Pre-check)**:
+  - Перед порождением контекста субагента выполняется сверка пары `provider/model` с живым реестром доступных провайдеров (`ctx.llm.listProviders()`).
+- **Подсказка доступных альтернатив (Candidate Shortlist)**:
+  - При опечатке или несовпадении модель не падает с непонятной ошибкой, а возвращает компактный список валидных моделей провайдера (`candidateShortlist: [...]`) и рекомендуемую модель.
+  - Поддержка режима `failFast: true` с генерацией типизированной ошибки `ModelValidationError`.
+
+#### 2. Smart Model Routing по типу и сложности задач (`lib/pipeline/model-selection.js`, Issue #48)
+- **Классификация вычислительной сложности задач**:
+  - `light` (документация, линтинг, форматирование, поиск файлов) $\rightarrow$ быстрые и экономичные модели (`deepseek-chat`, `flash`, `gpt-4o-mini`).
+  - `reasoning` (архитектура, аудит безопасности, оптимизация алгоритмов, DBA) $\rightarrow$ тяжелые reasoning-модели (`deepseek-reasoner`, `deepseek-r1`, `o1`).
+  - `balanced` $\rightarrow$ стандартная базовая модель сессии.
+- **Управление и безопасность**:
+  - Опция настраивается в конфиге плагина (`smartModelRouting: boolean`).
+  - Белый список провайдеров (`allowedProviders: string[]`): защита от утечки данных и перерасхода бюджета.
+  - **Graceful Fallback**: при отключении опции или недоступности провайдера происходит прозрачный откат на базовую модель сессии.
+
+#### 3. Сторож автопродолжения при max-tokens с защитой от циклов (`lib/pipeline/token-watchdog.js`, Issue #75)
+- **Перехват `max-tokens`**:
+  - Автоматическое распознавание причин остановки `max-tokens`, `max_tokens` или `length`.
+- **Точка восстановления (Flush Checkpoint)**:
+  - Фиксация промежуточного состояния сессии перед вызовом продолжения.
+- **Continue-Once Guarantee**:
+  - Строго не более одного автоматического продолжения на цепочку выполнения (`continuationCount <= 1`).
+  - Выходные фрагменты сквозным образом объединяются в единый деливерабл.
+- **Защита от зацикливания (Cycle Protection)**:
+  - При повторном исчерпании лимита генерация прерывается исключением `MaxTokensLoopError` с требованием декомпозиции задачи, предотвращая бесконечный расход токенов.
+
+#### 4. Приоритетная каскадная ротация сессий по лимиту емкости (Capacity Recycling) (`lib/pipeline/session-lifecycle.js`, Issue #67)
+- **Контроль предельной емкости**:
+  - Лимит `maxStoredSessions` (по умолчанию: 400 сессий).
+- **Иерархия вытеснения**:
+  - Приоритет 1: отработавшие одноразовые субагенты (`one-shot`) методом oldest-first по `completedAt`.
+  - Приоритет 2: долгоживущие субагенты (`continuable`), превысившие порог неактивности (`inactivityThresholdMs`, по умолчанию 1 час).
+  - Приоритет 3: главные сессии (только при явном флаге `cleanMain: true`).
+- **Pin Whitelist**:
+  - Активные воркеры и закрепленные пользователем сессии (`isPinned: true`) безусловно защищены от ротации.
+
+#### 5. Двухфазная обратимая очистка (Архивация в `sessions-archive/` с retention-удалением) (`lib/pipeline/session-lifecycle.js`, Issue #57)
+- **Фаза 1 (Обратимый архив)**:
+  - При завершении сессия перемещается в `~/.dsh/sessions-archive/<workspace>/<sessionId>/meta.json`, немедленно разгружая активный список UI и проекционный кэш.
+- **Возможность восстановления (Restore)**:
+  - Метод `restore(sessionId)` позволяет восстановить архивную сессию обратно в рабочий список до истечения срока хранения.
+- **Фаза 2 (Физическое удаление)**:
+  - Физическое удаление с диска выполняется строго по истечении retention-таймера (по умолчанию 24 часа).
+
 ## Locked Design Decisions
 - **2026-09-14** — Каноническая 4-слойная структура контекста (Static Base -> Shared Task -> Cumulative Context -> Role Directive) для KV-кэша DeepSeek API.
 - **2026-09-15** — Единый синонимичный мост DSH инструментов (read/edit/write/glob/grep/bash ⟷ view_file/replace_file_content/write_to_file/find_by_name/grep_search/run_command) и pure-reasoning fallback при наличии контекста задачи.
 - **2026-09-18** — Введение Fail-closed HTTP Guard (loopback/origin verification + 1MB payload limit), Anti-Matryoshka Guard (`HARD_MAX_DEPTH = 3`, `disableNestedDelegation`), Leaf Expert Bound (`maxDepth: 1`) и разметки `droppedTools` (Issues #113, #103, #102, #19, #111).
 - **2026-09-18** — Введение Per-Parent Serialization Gate & Concurrency Cap (#93), Per-Call CWD Scoping (#87), Session Lifecycle Manager с очисткой projcache (#56) и Decision Trace Ledger с лимитом payload ≤4KB в presentationMeta (#108).
+- **2026-09-18** — Введение Fail-Fast Model Validation с Candidate Shortlist (#82), Smart Model Routing (#48), Deterministic max-tokens Watchdog с Continue-Once Guarantee (#75), Capacity Recycling по лимиту емкости (#67) и Two-Phase Reversible Archive в sessions-archive/ (#57).

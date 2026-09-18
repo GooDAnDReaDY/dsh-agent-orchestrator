@@ -6,16 +6,26 @@ import {
   formatCumulativeArtifacts,
   assembleAgentMessages,
   extractCacheMetrics,
+  MIN_CACHE_ANCHOR_TOKENS,
 } from '../lib/pipeline/cache-prefixer.js'
 
 describe('Prompt Caching & Prefix Optimizer', () => {
-  it('generates a stable, byte-identical base anchor (>1024 tokens worth of characters)', () => {
+  it('exports MIN_CACHE_ANCHOR_TOKENS with value 1024', () => {
+    assert.equal(MIN_CACHE_ANCHOR_TOKENS, 1024)
+  })
+
+  it('generates a stable, byte-identical base anchor (>= 1024 tokens worth of characters)', () => {
     const anchor1 = buildStaticBaseAnchor({ projectType: 'dsh-plugin' })
     const anchor2 = buildStaticBaseAnchor({ projectType: 'dsh-plugin' })
 
     assert.equal(anchor1, anchor2)
-    // Approximate token count: 1 token ~ 4 chars. Base anchor should be >= 2000 chars
-    assert.ok(anchor1.length > 2000, `Expected base anchor length > 2000 chars, got ${anchor1.length}`)
+    // Approximate token count: 1 token ~ 4 chars for English/Markdown.
+    // Anchor must exceed MIN_CACHE_ANCHOR_TOKENS (1024 tokens -> ~4096 chars).
+    const estimatedTokens = Math.floor(anchor1.length / 4)
+    assert.ok(
+      estimatedTokens >= MIN_CACHE_ANCHOR_TOKENS,
+      `Expected base anchor to have >= ${MIN_CACHE_ANCHOR_TOKENS} tokens, got estimated ${estimatedTokens} (${anchor1.length} chars)`
+    )
   })
 
   it('preserves unbroken prefix across sequential stages (Cumulative Append-Only)', () => {
@@ -80,4 +90,3 @@ describe('Prompt Caching & Prefix Optimizer', () => {
     assert.equal(metrics.estimatedSavingsPct, 0)
   })
 })
-

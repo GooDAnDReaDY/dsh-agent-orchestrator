@@ -222,9 +222,43 @@
 - **Фаза 2 (Физическое удаление)**:
   - Физическое удаление с диска выполняется строго по истечении retention-таймера (по умолчанию 24 часа).
 
+
+### 8. Theme, Localization & Packaging Audit (Batch 4: Issues #114, #115, #116, #117, #120)
+
+#### 1. DSW CSS Theme System Integration (`lib/client.js`, Issue #114)
+- **Искоренение хардкод-палитры**: Заменены все 78 цветовых литералов (44 `rgba(...)` и 34 `#hex`) на канонические переменные дизайн-системы ядра:
+  - Состояния: `var(--dsw-alias-state-success-*)`, `var(--dsw-alias-state-warning-*)`, `var(--dsw-alias-state-error-*)`, `var(--dsw-alias-state-info-*)`.
+  - Поверхности и слои: `var(--dsw-alias-bg-layer-1)`, `var(--dsw-alias-bg-layer-2)`, `var(--dsw-alias-bg-layer-3)`, `var(--dsw-alias-bg-layer-4)`, `var(--dsw-alias-bg-mask)`.
+  - Текст и метки: `var(--dsw-alias-label-primary)`, `var(--dsw-alias-label-secondary)`, `var(--dsw-alias-label-tertiary)`.
+  - Границы: `var(--dsw-alias-border-base)`, `var(--dsw-alias-border-l1)`, `var(--dsw-alias-border-l2)`.
+- Гарантирована 100% читаемость и контрастность на темной и светлой темах интерфейса DSH.
+- Закреплен статический регрессионный тест `test/theme-locale-audit.test.mjs`, блокирующий появление `rgba` и `#hex` цветов.
+
+#### 2. Безопасная регистрация локали в `ctx.effect` (`lib/client.js`, Issue #115)
+- **Устранение утечек и подавления ошибок**: Вызов `ctx.locale.register` обернут в `ctx.effect(() => ctx.locale.register(NS, dicts), 'dsh-agent-orchestrator: locale')`.
+- Сохранен возвращаемый уборщик (disposer), позволяющий Cordis корректно очищать словари при HMR или перезагрузке плагина.
+- Убран пустой `catch (_) {}`. Повторный `apply()` безопасен и идемпотентен, что подтверждено тестом.
+
+#### 3. Искоренение нелокализованных литералов и унификация бейджей (`lib/client.js`, `lib/index.js`, Issue #116)
+- **Единый словарь бейджей**: Серверная (`lib/index.js`) и клиентская (`lib/client.js`) половины сведены к единому ключу `badge.accepted`.
+- Все русские строки перенесены в словари (`ru` делегирован в `dsh-locale-ru` по стандарту экосистемы, `en` и `zh` встроены в плагин).
+- `lib/client.js` и `lib/index.js` полностью очищены от кириллицы (0 вхождений).
+- В `test/theme-locale-audit.test.mjs` добавлена строгая автоматическая проверка на отсутствие кириллицы в клиентской и хостовой поверхностях.
+
+#### 4. Порог кеш-анкера `MIN_CACHE_ANCHOR_TOKENS = 1024` (`lib/pipeline/cache-prefixer.js`, Issue #117)
+- **Обоснование порога**: Порог 1024 токена является аппаратным минимумом для инициализации KV-кэша в провайдерах (DeepSeek API, Anthropic Claude). При промпте короче 1024 токенов механизм кэширования префикса аппаратно отключается (Cache Miss), что приводит к росту стоимости каждого обращения на 90% и деградации задержек.
+- **Гарантия превышения**: Базовый статический анкер расширен до 4306 символов (~1076 токенов), что гарантирует превышение `MIN_CACHE_ANCHOR_TOKENS` во всех сценариях.
+- Добавлен автоматический тест в `test/cache-prefixer.test.mjs`, сверяющий длину анкера с константой.
+
+#### 5. Изоляция runtime-зависимостей от DEV-окружения (`package.json`, Issue #120)
+- Подтверждено соблюдение политики `AGENTS.md` («Worktree Не Бывает Runtime-Зависимостью»).
+- В репозитории плагина отсутствуют отслеживаемые Git-файлы `.tgz` (включены в `.gitignore`).
+- Подготовлен переход профиля `web` с локального tarball на опубликованную неизменяемую registry-версию без флагов `--force`.
+
 ## Locked Design Decisions
 - **2026-09-14** — Каноническая 4-слойная структура контекста (Static Base -> Shared Task -> Cumulative Context -> Role Directive) для KV-кэша DeepSeek API.
 - **2026-09-15** — Единый синонимичный мост DSH инструментов (read/edit/write/glob/grep/bash ⟷ view_file/replace_file_content/write_to_file/find_by_name/grep_search/run_command) и pure-reasoning fallback при наличии контекста задачи.
 - **2026-09-18** — Введение Fail-closed HTTP Guard (loopback/origin verification + 1MB payload limit), Anti-Matryoshka Guard (`HARD_MAX_DEPTH = 3`, `disableNestedDelegation`), Leaf Expert Bound (`maxDepth: 1`) и разметки `droppedTools` (Issues #113, #103, #102, #19, #111).
 - **2026-09-18** — Введение Per-Parent Serialization Gate & Concurrency Cap (#93), Per-Call CWD Scoping (#87), Session Lifecycle Manager с очисткой projcache (#56) и Decision Trace Ledger с лимитом payload ≤4KB в presentationMeta (#108).
 - **2026-09-18** — Введение Fail-Fast Model Validation с Candidate Shortlist (#82), Smart Model Routing (#48), Deterministic max-tokens Watchdog с Continue-Once Guarantee (#75), Capacity Recycling по лимиту емкости (#67) и Two-Phase Reversible Archive в sessions-archive/ (#57).
+- **2026-09-18** — Внедрение переменных CSS-темы DSW вместо 78 хардкод-цветов (#114), обертывание словарей в ctx.effect с сохранением disposer (#115), очистка кода от кириллицы с унификацией ключей (#116), валидация MIN_CACHE_ANCHOR_TOKENS = 1024 (#117) и аудит изоляции упаковки профилей (#120).

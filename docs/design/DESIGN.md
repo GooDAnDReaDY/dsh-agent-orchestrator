@@ -133,7 +133,49 @@
   - `unknown-or-unsupported`: отсутствующие в текущей среде инструменты.
 - Результат `droppedTools` возвращается в ответе деливерабла и доступен для отображения в интерфейсе без падения задачи.
 
+### 6. Execution Isolation, Lifecycle & Audit (Batch 2: Issues #93, #87, #56, #108)
+
+#### 1. Per-Parent Serialization Gate & Concurrency Cap (`lib/pipeline/concurrency-gate.js`, Issue #93)
+- **Per-Parent Promise Queue (`tail gate`)**:
+  - Все параллельные запросы на запуск субагентов от одной родительской сессии сериализуются через сквозную цепочку промисов (`tailChains`).
+  - Устраняет race conditions при залповом порождении воркеров (когда модель генерирует несколько вызовов инструментов в одном ответе).
+- **Атомарная проверка емкости и квотирование**:
+  - Атомарное бронирование слота в `activePerParent` с контролем лимита `maxConcurrentSubagents` (по умолчанию: 3).
+  - Превышение лимита немедленно отклоняется понятной ошибкой до запуска дочернего контекста.
+
+#### 2. Per-Call CWD Scoping & Workspace Sandboxing (`lib/pipeline/concurrency-gate.js`, Issue #87)
+- **Изолированное окружение подпроекта**:
+  - Поддержка адресного параметра `cwd` для монорепозиториев (например, `packages/core`, `services/auth`).
+  - Проверка нахождения пути внутри базовой директории проекта (`path.resolve` containment check).
+- **Fail-Closed запрет выхода из рабочей области**:
+  - Попытки выхода через относительные переходы (`../../etc`) или внешние абсолютные пути немедленно пресекаются исключением `[WorkspaceScoping] Access denied`.
+  - Сохранение нормализованного относительного пути при указании поддиректорий внутри проекта.
+
+#### 3. Менеджер жизненного цикла сессий и очистка кэша (`lib/pipeline/session-lifecycle.js`, Issue #56)
+- **Событийная архивация разовых субагентов**:
+  - Автоматическая регистрация разовых легковесных субагентов (`one-shot`).
+  - Запуск таймера авто-архивации с grace-периодом (по умолчанию 3 минуты) при получении события `subagent/end` или завершении выполнения воркера.
+- **Синхронная очистка проекционного кэша (`session_projcache.json`)**:
+  - При архивации сессия безопасно удаляется из `session_projcache.json`, предотвращая рост кэша до сотен мегабайт и блокировку event loop / CPU.
+- **Фоновый аудит (Reconcile) и безопасная деактивация**:
+  - Фоновый периодический аудит для очистки зависших или аварийно завершившихся сессий.
+  - Полная очистка таймеров и контролируемая архивация при перезапуске или отключении плагина (`dispose()`).
+
+#### 4. Decision Trace Ledger в `presentationMeta` (≤4KB) (`lib/pipeline/decision-trace.js`, Issue #108)
+- **Многослойный реестр решений**:
+  - Фиксация метаданных маршрутизации: назначенный специалист, причина выбора пресета/модели, статистика тулов (разрешено, вырезано защитой, запрещено), задержка выполнения и статус.
+- **Изоляция от контекста LLM**:
+  - Трейс проецируется исключительно в `presentationMeta` (UI метаданные), исключая засорение контекстного окна родительской модели при следующем шаге.
+- **Аппаратный лимит размера (`MAX_TRACE_BYTES = 4096B`)**:
+  - Каскадное усечение (`sanitizeDecisionTrace`) второстепенных полей при переполнении:
+    1. Усечение длинных логов (до 64 символов).
+    2. Полное удаление массива логов при необходимости.
+    3. Усечение списка вырезанных инструментов `droppedTools`.
+    4. Сокращение текстового обоснования `rationale`.
+    5. Fallback до минимального дескриптора сущности `{ executionId, roleId, model, decision, truncated: true }`.
+
 ## Locked Design Decisions
 - **2026-09-14** — Каноническая 4-слойная структура контекста (Static Base -> Shared Task -> Cumulative Context -> Role Directive) для KV-кэша DeepSeek API.
 - **2026-09-15** — Единый синонимичный мост DSH инструментов (read/edit/write/glob/grep/bash ⟷ view_file/replace_file_content/write_to_file/find_by_name/grep_search/run_command) и pure-reasoning fallback при наличии контекста задачи.
 - **2026-09-18** — Введение Fail-closed HTTP Guard (loopback/origin verification + 1MB payload limit), Anti-Matryoshka Guard (`HARD_MAX_DEPTH = 3`, `disableNestedDelegation`), Leaf Expert Bound (`maxDepth: 1`) и разметки `droppedTools` (Issues #113, #103, #102, #19, #111).
+- **2026-09-18** — Введение Per-Parent Serialization Gate & Concurrency Cap (#93), Per-Call CWD Scoping (#87), Session Lifecycle Manager с очисткой projcache (#56) и Decision Trace Ledger с лимитом payload ≤4KB в presentationMeta (#108).

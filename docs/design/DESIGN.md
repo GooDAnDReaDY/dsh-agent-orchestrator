@@ -328,6 +328,14 @@ ormRole.length > 0), но пересечение с родительскими �
   - Из lib/client.js удалена безусловная регистрация слота settings.section, засорявшая левую панель настроек DSH.
   - Настройки плагина единообразно и изолированно регистрируются только через карточку settings.plugin.item.
 
+
+#### 7. Очистка устаревших релизных архивов и политика сборки tarball (Issue #126)
+- **Удаление устаревших tarball**:
+  - Из корня репозитория удалены 6 устаревших релизных архивов (`0.1.0` – `0.1.5`).
+  - Сохранен единственный актуальный архив `0.1.6`, используемый активным профилем `web` до момента официальной публикации пакета в npm registry.
+- **Политика локальных сборок**:
+  - Для предотвращения накопления артефактов в корне репозитория все будущие сборки перед публикацией направляются либо с перезаписью единого активного tarball, либо во внешний каталог артефактов.
+
 ## Locked Design Decisions
 - **2026-09-14** — Каноническая 4-слойная структура контекста (Static Base -> Shared Task -> Cumulative Context -> Role Directive) для KV-кэша DeepSeek API.
 - **2026-09-15** — Единый синонимичный мост DSH инструментов (read/edit/write/glob/grep/bash ⟷ view_file/replace_file_content/write_to_file/find_by_name/grep_search/run_command) и pure-reasoning fallback при наличии контекста задачи.
@@ -336,4 +344,4 @@ ormRole.length > 0), но пересечение с родительскими �
 - **2026-09-18** — Введение Fail-Fast Model Validation с Candidate Shortlist (#82), Smart Model Routing (#48), Deterministic max-tokens Watchdog с Continue-Once Guarantee (#75), Capacity Recycling по лимиту емкости (#67) и Two-Phase Reversible Archive в sessions-archive/ (#57).
 - **2026-09-18** — Внедрение переменных CSS-темы DSW вместо 78 хардкод-цветов (#114), обертывание словарей в ctx.effect с сохранением disposer (#115), очистка кода от кириллицы с унификацией ключей (#116), валидация MIN_CACHE_ANCHOR_TOKENS = 1024 (#117) и аудит изоляции упаковки профилей (#120).
 - **2026-09-18** — Внедрение динамического каталога моделей (model_subagent_catalog, #76), семантических тегов возможностей (#74), потолка maxTokens на маршрут (#79), управления глубиной рассуждений (reasoningEffort: off/low/medium/high/max, #86) и бейджей Model Identity Chips в UI (#73).
-- **2026-09-18** — Введение Fail-Closed Allowlist Guard (#104), системы Dispatch Snapshots и One-Click Save as Preset (#109), идемпотентного Self-Sync пресетов (#107), слэш-команд /subagents и /roster (#105), управления активным составом агентов через enabled toggles (#101) и очистки корня Settings от дублирующей settings.section (#128).
+- **2026-09-18** — Введение Fail-Closed Allowlist Guard (#104), системы Dispatch Snapshots и One-Click Save as Preset (#109), идемпотентного Self-Sync пресетов (#107), слэш-команд /subagents и /roster (#105), управления активным составом агентов через enabled toggles (#101) и очистки корня Settings от дублирующей settings.section (#128), а также очистки устаревших релизных архивов .tgz (#126).

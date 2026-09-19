@@ -2,6 +2,23 @@
 
 Notable changes to `@goodandready/dsh-agent-orchestrator`.
 
+## 0.1.9
+
+### Changed
+- **The root `settings.section` registration is gone.** The owner does not want our
+  plugins in the root Settings list; the settings live on the plugin's own page via
+  the plugin-list seat (`plugins.item`) and the Settings → Plugins tab, both of which
+  stay.
+- **The `label` closures are static strings again.** They read `ctx.t` behind a
+  `typeof` guard, and the core's inject proxy throws on the property access itself —
+  the guard never ran, and the label raised
+  `cannot get property "t" without inject` while the slot snapshot was built. That
+  exception aborts the whole client batch, which is what emptied the Settings
+  sections and every plugin settings card. The `plugins.item` and
+  `settings.plugins.tab` labels now return `'Agent Orchestrator'` directly.
+- The Issue #139 test no longer demands `settings.section`; it now asserts that the
+  seat is **not** registered.
+
 ## 0.1.8
 
 ### Fixed

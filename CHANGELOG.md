@@ -2,6 +2,18 @@
 
 Notable changes to `@goodandready/dsh-agent-orchestrator`.
 
+## 0.1.8
+
+### Fixed
+- **The plugin no longer breaks the whole client layer.** The `label` closures of the
+  `settings.plugins.tab`, `plugins.item` and `settings.section` entries read `ctx.t`
+  behind a `typeof ctx.t === 'function'` guard — but the core's inject proxy throws on
+  the property access itself, so the label raised
+  `cannot get property "t" without inject` while the slot snapshot was built. That
+  exception aborted the client batch, which is why the Settings sections and every
+  plugin settings card disappeared from the UI. All three labels now resolve inside a
+  `try`/`catch` and fall back to the static title.
+
 ## 0.1.7
 
 ### Fixed

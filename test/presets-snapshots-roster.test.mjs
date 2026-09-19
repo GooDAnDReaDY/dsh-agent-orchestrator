@@ -217,5 +217,8 @@ test('Batch 6/7: Issue #139 - settings reachability, settings.plugins.tab and gu
   // Must register into active DSH core slots (Issue #139)
   assert.ok(clientContent.includes("'settings.plugins.tab'"), 'Must register settings.plugins.tab')
   assert.ok(clientContent.includes("'plugins.item'"), 'Must register plugins.item')
-  assert.ok(clientContent.includes("'settings.section'"), 'Must register settings.section as fallback')
+  // settings.section is deliberately NOT registered: the owner does not want our
+  // plugins in the root Settings list, and plugins.item is the seat the current core
+  // renders as the plugin's own page with its configuration.
+  assert.ok(!clientContent.includes("'settings.section',\n"), 'must not register into settings.section')
 })

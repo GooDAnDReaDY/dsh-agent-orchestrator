@@ -68,3 +68,23 @@ test('Batch 8: Issue #147 - store.recordCompletion aggregates cache metrics and 
   assert.equal(store.globalMetrics.totalCacheMissTokens, 300)
   assert.equal(store.globalMetrics.overallHitRatio, 0.8)
 })
+
+import { detectOrchestratorIntent } from '../lib/pipeline/intent.js'
+
+test('Batch 8: Issue #148 - detectOrchestratorIntent tags triggerKind (slash vs nl)', () => {
+  const slashIntent = detectOrchestratorIntent('/orchestrate medium refactor store')
+  assert.equal(slashIntent.isTrigger, true)
+  assert.equal(slashIntent.triggerKind, 'slash')
+
+  const orcIntent = detectOrchestratorIntent('/orc quick fix')
+  assert.equal(orcIntent.isTrigger, true)
+  assert.equal(orcIntent.triggerKind, 'slash')
+
+  const ruIntent = detectOrchestratorIntent('сделай через оркестратор создать профиль')
+  assert.equal(ruIntent.isTrigger, true)
+  assert.equal(ruIntent.triggerKind, 'nl')
+
+  const enIntent = detectOrchestratorIntent('orchestrate: fix payments')
+  assert.equal(enIntent.isTrigger, true)
+  assert.equal(enIntent.triggerKind, 'nl')
+})

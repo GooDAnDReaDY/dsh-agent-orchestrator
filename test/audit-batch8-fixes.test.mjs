@@ -234,3 +234,61 @@ test('Batch 8: Issue #154 - read-only routes return 405 Method Not Allowed for n
   assert.equal(res2.statusCode, 405)
   assert.equal(res2.body.error, 'Method not allowed')
 })
+
+test('Batch 8: Issue #155 - rejectUntrustedRequest protects read routes (/config, /pipeline, /snapshots)', async () => {
+  const registered = new Map()
+  const fakeCtx = {
+    effect: (fn) => fn(),
+    webServer: {
+      register: (reg) => {
+        registered.set(reg.path, reg.handler)
+        return () => {}
+      },
+    },
+  }
+
+  registerOrchestratorRoutes(fakeCtx, {
+    store: { getActivePipelines: () => [], getMetrics: () => ({}), getAllPipelines: () => [] },
+    runner: {},
+    getConfig: () => ({ secret: 'api-key-123' }),
+    updateConfig: () => {},
+    callLlm: () => {},
+    snapshotManager: { listSnapshots: () => [] },
+  })
+
+  const createMockRes = () => {
+    const res = {
+      statusCode: 200,
+      headers: {},
+      body: null,
+      setHeader: (k, v) => { res.headers[k] = v },
+      end: (data) => {
+        res.body = data ? JSON.parse(data) : null
+      },
+    }
+    return res
+  }
+
+  const untrustedReq = {
+    method: 'GET',
+    url: '/dsh-agent-orchestrator/config',
+    headers: {
+      host: 'localhost:3080',
+      origin: 'http://malicious-site.com',
+    },
+  }
+
+  // 1. GET /config from untrusted origin -> 403 Forbidden
+  const configHandler = registered.get('/dsh-agent-orchestrator/config')
+  const res1 = createMockRes()
+  await configHandler(untrustedReq, res1)
+  assert.equal(res1.statusCode, 403)
+  assert.equal(res1.body.error.code, 'forbidden')
+
+  // 2. GET /snapshots from untrusted origin -> 403 Forbidden
+  const snapshotsHandler = registered.get('/dsh-agent-orchestrator/snapshots')
+  const res2 = createMockRes()
+  snapshotsHandler({ ...untrustedReq, url: '/dsh-agent-orchestrator/snapshots' }, res2)
+  assert.equal(res2.statusCode, 403)
+  assert.equal(res2.body.error.code, 'forbidden')
+})

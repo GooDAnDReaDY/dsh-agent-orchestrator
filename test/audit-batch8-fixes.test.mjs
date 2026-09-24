@@ -35,3 +35,36 @@ test('Batch 8: Issue #146 - DAG result property alignment (stateMap and success)
   const snapshotStatus = dagResult?.success ? 'completed' : 'failed'
   assert.equal(snapshotStatus, 'completed')
 })
+
+import { OrchestratorStore } from '../lib/store.js'
+
+test('Batch 8: Issue #147 - store.recordCompletion aggregates cache metrics and counts', () => {
+  const store = new OrchestratorStore({ storagePath: '/tmp/test-store-147-' + Date.now() + '.json' })
+  store.recordPipeline({ pipelineId: 'pipe-1', taskTitle: 'Test 1' })
+
+  store.recordCompletion('pipe-1', {
+    success: true,
+    durationMs: 1500,
+    stateMap: {
+      stageA: {
+        status: 'completed',
+        metrics: { promptTokens: 1000, cacheHitTokens: 800, cacheMissTokens: 200 },
+      },
+      stageB: {
+        status: 'completed',
+        metrics: { promptTokens: 500, cacheHitTokens: 400, cacheMissTokens: 100 },
+      },
+    },
+    artifacts: { stageA: 'Artifact A' },
+  })
+
+  const p = store.getPipeline('pipe-1')
+  assert.equal(p.status, 'completed')
+  assert.equal(p.durationMs, 1500)
+  assert.equal(store.globalMetrics.completedPipelines, 1)
+  assert.equal(store.globalMetrics.failedPipelines, 0)
+  assert.equal(store.globalMetrics.totalPromptTokens, 1500)
+  assert.equal(store.globalMetrics.totalCacheHitTokens, 1200)
+  assert.equal(store.globalMetrics.totalCacheMissTokens, 300)
+  assert.equal(store.globalMetrics.overallHitRatio, 0.8)
+})

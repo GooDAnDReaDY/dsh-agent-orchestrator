@@ -320,3 +320,27 @@ test('Batch 8: Issue #156 - executeDAG respects AbortSignal and stops scheduling
   assert.equal(executedStages[0], 's1')
   assert.equal(result.stateMap.s2.status, 'skipped')
 })
+
+test('Batch 8: Issue #157 - onNodeComplete error does not double-decrement runningCount or mark completed node as failed', async () => {
+  const stages = [
+    { id: 's1', name: 'Stage 1' },
+    { id: 's2', name: 'Stage 2', dependsOn: ['s1'] },
+  ]
+
+  const result = await executeDAG({
+    stages,
+    executor: async (s) => 'result-' + s.id,
+    onNodeComplete: (node) => {
+      if (node.id === 's1') {
+        throw new Error('Exploding user callback on s1 completion')
+      }
+    },
+    concurrency: 2,
+  })
+
+  assert.equal(result.success, true)
+  assert.equal(result.stateMap.s1.status, 'completed')
+  assert.equal(result.stateMap.s2.status, 'completed')
+  assert.equal(result.artifacts.s1, 'result-s1')
+  assert.equal(result.artifacts.s2, 'result-s2')
+})

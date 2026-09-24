@@ -88,3 +88,23 @@ test('Batch 8: Issue #148 - detectOrchestratorIntent tags triggerKind (slash vs 
   assert.equal(enIntent.isTrigger, true)
   assert.equal(enIntent.triggerKind, 'nl')
 })
+
+import { normalizeRoleId } from '../lib/pipeline/delegation.js'
+
+test('Batch 8: Issue #149 - normalizeRoleId word boundary matching for short aliases', () => {
+  // 1. False positive regression tests
+  assert.notEqual(normalizeRoleId('build'), 'ui_design')
+  assert.notEqual(normalizeRoleId('test-suite'), 'ui_design')
+  assert.notEqual(normalizeRoleId('guidance'), 'ui_design')
+  assert.notEqual(normalizeRoleId('precision'), 'devops')
+  assert.notEqual(normalizeRoleId('отзвук'), 'spec')
+
+  // 2. Legitimate matches
+  assert.equal(normalizeRoleId('ui'), 'ui_design')
+  assert.equal(normalizeRoleId('ui-design'), 'ui_design')
+  assert.equal(normalizeRoleId('app_ui'), 'ui_design')
+  assert.equal(normalizeRoleId('ci'), 'devops')
+  assert.equal(normalizeRoleId('ci/cd'), 'devops')
+  assert.equal(normalizeRoleId('тз'), 'spec')
+  assert.equal(normalizeRoleId('тз на api'), 'spec')
+})

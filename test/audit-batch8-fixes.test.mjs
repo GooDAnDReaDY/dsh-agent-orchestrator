@@ -141,3 +141,10 @@ test('Batch 8: Issue #150 - store saveDebounced and SnapshotManager in-memory li
   const list3 = snapMgr.listSnapshots()
   assert.equal(list3.length, 2)
 })
+
+test('Batch 8: Issue #151 - OrchestratorQuickBar avoids activePipeline object identity dependency in useEffect', () => {
+  const clientCode = fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
+  // Must depend on hasActive or primitive boolean, not object activePipeline
+  assert.ok(clientCode.includes('[hasActive, pollStatus]'))
+  assert.ok(!clientCode.includes('}, [activePipeline, pollStatus]'))
+})

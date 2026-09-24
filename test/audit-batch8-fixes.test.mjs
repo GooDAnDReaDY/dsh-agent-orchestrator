@@ -168,3 +168,16 @@ test('Batch 8: Issue #152 - deterministic sorting of upstream artifacts preserve
   assert.equal(formatted1, formatted2)
   assert.ok(formatted1.indexOf('stage-A') < formatted1.indexOf('stage-B'))
 })
+
+import { fetchModelCatalog } from '../lib/pipeline/model-selection.js'
+
+test('Batch 8: Issue #153 - model-selection avoids hardcoded vendor models in defaults', async () => {
+  const modelFile = fs.readFileSync(new URL('../lib/pipeline/model-selection.js', import.meta.url), 'utf8')
+  assert.ok(!modelFile.includes('claude-3-5-sonnet'))
+
+  // Default fallback pool when ctx has no live models
+  const dummyCtx = {}
+  const catalog = await fetchModelCatalog(dummyCtx)
+  assert.ok(catalog.length >= 2)
+  assert.ok(catalog.every((m) => m.provider === 'deepseek-official'))
+})

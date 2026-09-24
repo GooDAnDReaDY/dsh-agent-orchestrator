@@ -181,3 +181,56 @@ test('Batch 8: Issue #153 - model-selection avoids hardcoded vendor models in de
   assert.ok(catalog.length >= 2)
   assert.ok(catalog.every((m) => m.provider === 'deepseek-official'))
 })
+
+import { registerOrchestratorRoutes } from '../lib/routes.js'
+
+test('Batch 8: Issue #154 - read-only routes return 405 Method Not Allowed for non-GET verbs', async () => {
+  const registered = new Map()
+  const fakeCtx = {
+    effect: (fn) => fn(),
+    webServer: {
+      register: (reg) => {
+        registered.set(reg.path, reg.handler)
+        return () => {}
+      },
+    },
+  }
+
+  registerOrchestratorRoutes(fakeCtx, {
+    store: { getActivePipelines: () => [], getMetrics: () => ({}), getAllPipelines: () => [] },
+    runner: {},
+    getConfig: () => ({}),
+    updateConfig: () => {},
+    callLlm: () => {},
+    snapshotManager: { listSnapshots: () => [] },
+  })
+
+  const createMockRes = () => {
+    const res = {
+      statusCode: 200,
+      headers: {},
+      body: null,
+      setHeader: (k, v) => { res.headers[k] = v },
+      end: (data) => {
+        res.body = data ? JSON.parse(data) : null
+      },
+    }
+    return res
+  }
+
+  // 1. POST /status -> 405
+  const statusHandler = registered.get('/dsh-agent-orchestrator/status')
+  assert.ok(statusHandler)
+  const res1 = createMockRes()
+  statusHandler({ method: 'POST', headers: {} }, res1)
+  assert.equal(res1.statusCode, 405)
+  assert.equal(res1.body.error, 'Method not allowed')
+
+  // 2. DELETE /snapshots -> 405
+  const snapshotsHandler = registered.get('/dsh-agent-orchestrator/snapshots')
+  assert.ok(snapshotsHandler)
+  const res2 = createMockRes()
+  snapshotsHandler({ method: 'DELETE', headers: {} }, res2)
+  assert.equal(res2.statusCode, 405)
+  assert.equal(res2.body.error, 'Method not allowed')
+})

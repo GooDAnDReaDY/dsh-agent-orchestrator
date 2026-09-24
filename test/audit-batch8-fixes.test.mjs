@@ -148,3 +148,23 @@ test('Batch 8: Issue #151 - OrchestratorQuickBar avoids activePipeline object id
   assert.ok(clientCode.includes('[hasActive, pollStatus]'))
   assert.ok(!clientCode.includes('}, [activePipeline, pollStatus]'))
 })
+
+import { formatCumulativeArtifacts } from '../lib/pipeline/cache-prefixer.js'
+
+test('Batch 8: Issue #152 - deterministic sorting of upstream artifacts preserves KV-cache bytes', () => {
+  const inputs1 = [
+    { stageId: 'stage-B', roleId: 'code', output: 'Code output' },
+    { stageId: 'stage-A', roleId: 'spec', output: 'Spec output' },
+  ].sort((a, b) => a.stageId.localeCompare(b.stageId))
+
+  const inputs2 = [
+    { stageId: 'stage-A', roleId: 'spec', output: 'Spec output' },
+    { stageId: 'stage-B', roleId: 'code', output: 'Code output' },
+  ].sort((a, b) => a.stageId.localeCompare(b.stageId))
+
+  const formatted1 = formatCumulativeArtifacts(inputs1)
+  const formatted2 = formatCumulativeArtifacts(inputs2)
+
+  assert.equal(formatted1, formatted2)
+  assert.ok(formatted1.indexOf('stage-A') < formatted1.indexOf('stage-B'))
+})

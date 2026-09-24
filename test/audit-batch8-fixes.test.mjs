@@ -108,3 +108,36 @@ test('Batch 8: Issue #149 - normalizeRoleId word boundary matching for short ali
   assert.equal(normalizeRoleId('тз'), 'spec')
   assert.equal(normalizeRoleId('тз на api'), 'spec')
 })
+
+import { SnapshotManager } from '../lib/pipeline/snapshots.js'
+import fs from 'node:fs'
+
+test('Batch 8: Issue #150 - store saveDebounced and SnapshotManager in-memory listing cache', async () => {
+  // 1. Store saveDebounced
+  const tmpStorePath = '/tmp/test-store-150-' + Date.now() + '.json'
+  const store = new OrchestratorStore({ storagePath: tmpStorePath })
+  store.recordPipeline({ pipelineId: 'pipe-debounce', taskTitle: 'Debounce Task' })
+  store.updateStage('pipe-debounce', 's1', { status: 'running' })
+
+  // Store output must be compact JSON without null, 2 indentation
+  const raw = fs.readFileSync(tmpStorePath, 'utf8')
+  assert.ok(!raw.includes('\n  "pipelines":'))
+
+  // 2. Snapshot listing cache
+  const tmpSnapDir = '/tmp/test-snaps-150-' + Date.now()
+  const snapMgr = new SnapshotManager({ baseDir: tmpSnapDir })
+  snapMgr.createSnapshot({ id: 'snap-1', title: 'Snap 1' })
+
+  const list1 = snapMgr.listSnapshots()
+  assert.equal(list1.length, 1)
+  assert.equal(list1[0].id, 'snap-1')
+
+  // Repeated list uses cache
+  const list2 = snapMgr.listSnapshots()
+  assert.equal(list2.length, 1)
+
+  // Creating new snapshot invalidates cache
+  snapMgr.createSnapshot({ id: 'snap-2', title: 'Snap 2' })
+  const list3 = snapMgr.listSnapshots()
+  assert.equal(list3.length, 2)
+})

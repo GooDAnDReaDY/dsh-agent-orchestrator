@@ -292,3 +292,31 @@ test('Batch 8: Issue #155 - rejectUntrustedRequest protects read routes (/config
   assert.equal(res2.statusCode, 403)
   assert.equal(res2.body.error.code, 'forbidden')
 })
+
+test('Batch 8: Issue #156 - executeDAG respects AbortSignal and stops scheduling new stages', async () => {
+  const controller = new AbortController()
+  const executedStages = []
+
+  const stages = [
+    { id: 's1', name: 'Stage 1' },
+    { id: 's2', name: 'Stage 2', dependsOn: ['s1'] },
+  ]
+
+  const dagPromise = executeDAG({
+    stages,
+    signal: controller.signal,
+    executor: async (s) => {
+      executedStages.push(s.id)
+      controller.abort()
+      return 'done'
+    },
+    concurrency: 1,
+  })
+
+  const result = await dagPromise
+  assert.equal(result.success, false)
+  assert.equal(result.cancelled, true)
+  assert.equal(executedStages.length, 1)
+  assert.equal(executedStages[0], 's1')
+  assert.equal(result.stateMap.s2.status, 'skipped')
+})

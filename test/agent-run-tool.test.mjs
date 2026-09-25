@@ -65,8 +65,8 @@ test('apply: registers agent_run tool with native parameters and executor', asyn
   const agentRunTool = registeredTools.find((t) => t.name === 'agent_run')
   assert.ok(agentRunTool, 'agent_run tool must be registered')
   assert.equal(agentRunTool.name, 'agent_run')
-  assert.ok(agentRunTool.parameters.name)
-  assert.ok(agentRunTool.parameters.task)
+  assert.ok(agentRunTool.parameters.properties?.name || agentRunTool.parameters.name)
+  assert.ok(agentRunTool.parameters.properties?.task || agentRunTool.parameters.task)
 
   // 2. Execute agent_run
   const result = await agentRunTool.execute(

@@ -2,6 +2,11 @@
 
 Notable changes to `@goodandready/dsh-agent-orchestrator`.
 
+## 0.1.12
+
+### Fixed
+- **Volatile Getter Reference Unwrapping**: Added `plainConfig` and `isVolatileRef` helpers to unwrap DSH `{ get }` volatile getter objects before passing to `SettingsForms.replace()` and storing in active configuration, eliminating `Config $.kanbanSync.get contains a function` validation errors (#160).
+
 ## 0.1.11
 
 ### Fixed

@@ -1,6 +1,6 @@
 {
   "name": "@goodandready/dsh-agent-orchestrator",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Multi-agent task decomposition, DAG workflow orchestration, and prompt caching optimizer for DeepSeek Harness.",
   "type": "module",
   "main": "./lib/index.js",

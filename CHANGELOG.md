@@ -2,6 +2,12 @@
 
 Notable changes to `@goodandready/dsh-agent-orchestrator`.
 
+## 0.1.11
+
+### Fixed
+- **Fail-Closed Write Guards & Status Data Sanitization**: Enforced fail-closed HTTP origin/host/loopback verification on all mutating endpoints (`/dispatch`, `/delegate`, `/cancel`, `/config`, `/snapshots/save-as-preset`) rejecting untrusted headers and cross-site requests with 403. Sanitized public `/status` route to emit non-sensitive stage progress and metrics only, preventing task description, prompt, and output data leakage (#113).
+- **Modern SettingsForms Persistence & Fallback**: Implemented settings adapter bridging DSH 0.1.7-rc.1 `SettingsForms` (`describe`, `replace`, `update`) with revision tracking while preserving legacy `register()` fallback. Marked configuration fields as volatile to ensure proper DSH settings UI visibility and guaranteed full persistence of specialist roles, custom DAG scenarios, and kanban synchronization settings (#160).
+
 ## 0.1.10
 
 ### Fixed
